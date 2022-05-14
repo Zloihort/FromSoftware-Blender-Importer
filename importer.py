@@ -68,7 +68,12 @@ def import_mesh(path, file_name, unpack_path, yabber_path, get_textures, clean_u
     if import_rig:
         armature = create_armature(base_name, collection, flver_data)
 
+    # Create materials
     materials = []
+    for flver_material in flver_data.materials:
+        material = bpy.data.materials.new(flver_material.name)
+        material.diffuse_color = (random(), random(), random(), 1.0)
+        materials.append(material)
 
     if get_textures:
         try:
@@ -144,8 +149,8 @@ def import_mesh(path, file_name, unpack_path, yabber_path, get_textures, clean_u
                     weights = inflated_mesh.vertices.bone_weights[vert.index]
                     indices = inflated_mesh.vertices.bone_indices[vert.index]
                     for index, weight in zip(indices, weights):
-                        if weight == 0.0:
-                            continue
+                        #if weight == 0.0:
+                            #continue
                         vert[weight_layer][index] = weight
                 except IndexError:
                     # TODO: Replace with check for zero bone_count, which then uses
@@ -184,10 +189,12 @@ def create_armature(name, collection, flver_data):
     bpy.ops.object.editmode_toggle() 
 
     root_bones = []
-    for f_bone in flver_data.bones:
+    root_bone_indexes = []
+    for f_index, f_bone in enumerate(flver_data.bones):
         bone = armature.data.edit_bones.new(f_bone.name)
         if f_bone.parent_index < 0:
             root_bones.append(bone)
+            root_bone_indexes.append(f_index)
     
     def transform_bone_and_siblings(bone_index, parent_matrix):
         while bone_index != -1:
@@ -216,7 +223,7 @@ def create_armature(name, collection, flver_data):
                 @ Matrix.Translation(translation_vector) @ rotation_matrix)
             bone_index = flver_bone.next_sibling_index
 
-    transform_bone_and_siblings(0, Matrix())
+    #transform_bone_and_siblings(0, Matrix())
 
     def connect_bone(bone):
         children = bone.children
@@ -237,6 +244,8 @@ def create_armature(name, collection, flver_data):
         child.use_connect = True
         connect_bone(child)
 
+    for bone_index in root_bone_indexes:
+        transform_bone_and_siblings(bone_index, Matrix())
     for bone in root_bones:
         connect_bone(bone)
 
